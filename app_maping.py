@@ -8,7 +8,7 @@ cur = conn.cursor()
 cur.execute("select *,rowid from mapping where  loaded='n';")
 
 rows = cur.fetchall()
-url = "https://ccdi-dev-cpi-neptune-cluster.cluster-cji2s0rgsplw.us-east-1.neptune.amazonaws.com:8182/gremlin"
+url = # gremlin url of neptune db
 
 temp_str = "g.V('$id1').addE('mapping').to(V('$id2')).property('source', 'kf_dataservice_studies_w_cog_usis_duplicates_v2.xlsx').property('status', 'loaded')"
 
@@ -30,25 +30,6 @@ for row in rows:
 
 
 
-'''
-g.V().has('sourceVertexProperty', 'sourceVertexValue')
-  .addE('relationshipLabel')
-  .property(list, 'multiValuedProperty', 'value1', 'value2', 'value3')
-  .to(g.V().has('targetVertexProperty', 'targetVertexValue'))
-url = "https://neo4j-qa.bento-tools.org:8182/gremlin"
- 
-data = {
-    "gremlin": 1001,
-    "name": "geek",
-    "passion": "coding",
-}
- 
-response = requests.post(url, json=data)
- 
-print("Status Code", response.status_code)
-print("JSON Response ", response.json())
-      
-  '''
 
  
 
