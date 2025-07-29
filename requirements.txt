@@ -1,0 +1,11 @@
+boto3==1.34.105
+botocore==1.34.105
+jmespath==1.0.1
+networkx==3.2.1
+prefect>=3.2.14
+prefect-docker>=0.3.0
+pymysql==1.1.0
+python-dateutil==2.9.0.post0
+s3transfer==0.10.1
+six==1.16.0
+urllib3>=1.25.4,<1.27

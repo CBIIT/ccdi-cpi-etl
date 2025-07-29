@@ -5,6 +5,7 @@ import pymysql
 from datetime import datetime
 import boto3
 import logging
+from prefect import flow, task
 
 # Setup logger
 logging.basicConfig(
@@ -13,6 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@task
 def get_mysql_credentials(secret_name: str, region_name: str = "us-east-1") -> dict:
     import boto3
     from botocore.exceptions import ClientError
@@ -31,6 +33,7 @@ def get_mysql_credentials(secret_name: str, region_name: str = "us-east-1") -> d
         import base64
         return json.loads(base64.b64decode(response["SecretBinary"]))
 
+@task
 def read_data_from_db() -> list:
     result = []
     connection = None
@@ -54,12 +57,14 @@ def read_data_from_db() -> list:
             connection.close()
     return result
 
+@task
 def get_relationships(uids: list) -> dict:
     G = nx.Graph()
     for i in uids:
         G.add_edge(i["p1"]+"::"+i["d1"], i["p2"]+"::"+i["d2"])
     return dict(nx.all_pairs_shortest_path(G))
 
+@task
 def format_output(graph: dict) -> list:
     unique_linked_sets = set()
     for _, relationships in graph.items():
@@ -68,10 +73,12 @@ def format_output(graph: dict) -> list:
         unique_linked_sets.add(tuple(related))
     return [{'related': list(set_)} for set_ in unique_linked_sets]
 
+@task
 def write_json_file(data: list, filename: str):
     with open(filename, "w") as file:
         json.dump(data, file, indent=4)
 
+@task
 def update_participants_from_json(json_file: str):
     creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
     conn = pymysql.connect(
@@ -129,6 +136,7 @@ def update_participants_from_json(json_file: str):
         cursor.close()
         conn.close()
 
+@task
 def upload_to_s3(file_path: str, bucket: str, prefix: str):
     s3 = boto3.client('s3')
     today = datetime.today().strftime('%Y-%m-%d')
@@ -136,6 +144,7 @@ def upload_to_s3(file_path: str, bucket: str, prefix: str):
     s3.upload_file(file_path, bucket, key)
     logger.info(f"Uploaded to s3://{bucket}/{key}")
 
+@task
 def update_statistics():
     notify_completion("main_with_logging_optimized.py has completed successfully.")
     creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
@@ -183,6 +192,7 @@ def update_statistics():
         conn.close()
 
 
+@task
 def notify_completion(message: str, subject: str = "ETL Job Completed"):
     sns = boto3.client("sns", region_name="us-east-1")
     try:
@@ -196,6 +206,7 @@ def notify_completion(message: str, subject: str = "ETL Job Completed"):
         logger.error(f"Failed to send SNS notification: {e}")
 
 
+@flow(name="etl")
 def main():
     notify_completion("main.py has started.")
     raw = read_data_from_db()
