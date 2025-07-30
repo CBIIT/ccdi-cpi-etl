@@ -18,6 +18,8 @@ pull:
     repository: "https://github.com/CBIIT/ccdi-cpi-etl.git"
     branch: "main"
     access_token: null
+- prefect.deployments.steps.pip_install_requirements:
+    requirements_file: requirements.txt
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
 - name: etl-pipeline
