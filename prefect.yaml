@@ -3,31 +3,48 @@
 # control along with your flow code.
 
 # Generic metadata about this project
-name: ccdi-cpi-etl
-prefect-version: 3.4.10
+name: CRDC Data Loader
+prefect-version: 3.2.14
 
 # build section allows you to manage and build docker images
-build: null
+build:
 
 # push section allows you to manage if and how this project is uploaded to remote locations
-push: null
+push:
 
 # pull section allows you to provide instructions for cloning this project in remote locations
 pull:
-- prefect.deployments.steps.set_working_directory:
-    directory: /Users/wangx51/workspace/ccdi-cpi-etl
+- prefect.deployments.steps.git_clone:
+    repository: "https://github.com/CBIIT/ccdi-cpi-etl.git"
+    branch: "main"
+    access_token: null
 
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
-- name: default
-  version: null
+- name: etl-pipeline
+  version:
   tags: []
-  concurrency_limit: null
-  description: null
+  description: CCDI CPI ETL data processing pipeline
+  schedule: {}
+  entrypoint: main.py:main
+  parameters: {}
+  work_pool:
+    name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
+    work_queue_name: default
+    job_variables: {}
+  concurrency_limit:
+  schedules: []
+
+- name: database-backup
+  version:
+  tags: []
+  description: MySQL database backup using mysqldump
+  schedule: {}
   entrypoint: db.py:mysql_backup_flow
   parameters: {}
   work_pool:
     name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
-    work_queue_name: null
+    work_queue_name: default
     job_variables: {}
+  concurrency_limit:
   schedules: []

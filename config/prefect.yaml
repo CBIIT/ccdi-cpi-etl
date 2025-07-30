@@ -14,8 +14,10 @@ push:
 
 # pull section allows you to provide instructions for cloning this project in remote locations
 pull:
-- prefect.deployments.steps.set_working_directory:
-    directory: /app
+- prefect.deployments.steps.git_clone:
+    repository: "https://github.com/CBIIT/ccdi-cpi-etl.git"
+    branch: "main"
+    access_token: null
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
 - name: etl-pipeline
@@ -23,15 +25,12 @@ deployments:
   tags: []
   description: CCDI CPI ETL data processing pipeline
   schedule: {}
-  entrypoint: /app/main.py:main
+  entrypoint: main.py:main
   parameters: {}
   work_pool:
     name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
     work_queue_name: default
-    job_variables:
-      image: "893214465464.dkr.ecr.us-east-1.amazonaws.com/cpi:latest"
-      env:
-        PREFECT_LOGGING_EXTRA_LOGGERS: __main__
+    job_variables: {}
   concurrency_limit:
   schedules: []
 
@@ -40,14 +39,11 @@ deployments:
   tags: []
   description: MySQL database backup using mysqldump
   schedule: {}
-  entrypoint: /app/db.py:mysql_backup_flow
+  entrypoint: db.py:mysql_backup_flow
   parameters: {}
   work_pool:
     name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
     work_queue_name: default
-    job_variables:
-      image: "893214465464.dkr.ecr.us-east-1.amazonaws.com/cpi:latest"
-      env:
-        PREFECT_LOGGING_EXTRA_LOGGERS: __main__
+    job_variables: {}
   concurrency_limit:
   schedules: []
