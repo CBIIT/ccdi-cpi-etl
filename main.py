@@ -49,7 +49,7 @@ def read_data_from_db() -> list:
     try:
         creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
         connection = pymysql.connect(
-            host='ccdi-dev-cpi-rds.cji2s0rgsplw.us-east-1.rds.amazonaws.com',
+            host=creds['host'],
             user=creds['user_name'],
             password=creds['password'],
             database='cpi',
@@ -91,7 +91,7 @@ def write_json_file(data: list, filename: str):
 def update_participants_from_json(json_file: str):
     creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
     conn = pymysql.connect(
-        host='ccdi-dev-cpi-rds.cji2s0rgsplw.us-east-1.rds.amazonaws.com',
+        host=creds['host'],
         user=creds['user_name'],
         password=creds['password'],
         database='cpi',
@@ -158,7 +158,7 @@ def update_statistics():
     notify_completion("main_with_logging_optimized.py has completed successfully.")
     creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
     conn = pymysql.connect(
-        host='ccdi-dev-cpi-rds.cji2s0rgsplw.us-east-1.rds.amazonaws.com',
+        host=creds['host'],
         user=creds['user_name'],
         password=creds['password'],
         database='cpi',

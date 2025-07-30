@@ -39,7 +39,25 @@ deployments:
   description: MySQL database backup using mysqldump
   schedule: {}
   entrypoint: db.py:mysql_backup_flow
-  parameters: {}
+  parameters: 
+    environment: "dev"
+  work_pool:
+    name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
+    work_queue_name: default
+    job_variables:
+      image: "893214465464.dkr.ecr.us-east-1.amazonaws.com/cpi:latest"
+  concurrency_limit:
+  schedules: []
+
+- name: database-restore
+  version:
+  tags: []
+  description: MySQL database restore from dump file
+  schedule: {}
+  entrypoint: db.py:mysql_restore_flow
+  parameters: 
+    dump_file: ""
+    environment: "dev"
   work_pool:
     name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
     work_queue_name: default
