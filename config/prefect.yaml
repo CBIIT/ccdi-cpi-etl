@@ -14,12 +14,8 @@ push:
 
 # pull section allows you to provide instructions for cloning this project in remote locations
 pull:
-- prefect.deployments.steps.git_clone:
-    repository: "https://github.com/CBIIT/ccdi-cpi-etl.git"
-    branch: "main"
-- prefect.deployments.steps.pip_install_requirements:
-    requirements_file: requirements.txt
-    directory: /opt/prefect/ccdi-cpi-etl-main
+- prefect.deployments.steps.set_working_directory:
+    directory: /app
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
 - name: etl-pipeline
@@ -32,7 +28,8 @@ deployments:
   work_pool:
     name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
     work_queue_name: default
-    job_variables: {}
+    job_variables:
+      image: "893214465464.dkr.ecr.us-east-1.amazonaws.com/cpi:latest"
   concurrency_limit:
   schedules: []
 
@@ -46,6 +43,7 @@ deployments:
   work_pool:
     name: ccdi-cpi-2gb-prefect-2.20.3-python3.9
     work_queue_name: default
-    job_variables: {}
+    job_variables:
+      image: "893214465464.dkr.ecr.us-east-1.amazonaws.com/cpi:latest"
   concurrency_limit:
   schedules: []
