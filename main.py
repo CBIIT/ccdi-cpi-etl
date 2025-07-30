@@ -20,6 +20,15 @@ def get_mysql_credentials(secret_name: str, region_name: str = "us-east-1") -> d
     from botocore.exceptions import ClientError
     import json
 
+    # Get current IAM role ARN for debugging
+    try:
+        sts_client = boto3.client("sts", region_name=region_name)
+        identity = sts_client.get_caller_identity()
+        current_arn = identity.get('Arn', 'Unknown')
+        logger.info(f"Current execution role ARN: {current_arn}")
+    except Exception as e:
+        logger.warning(f"Could not retrieve current role ARN: {e}")
+
     client = boto3.client("secretsmanager", region_name=region_name)
 
     try:
