@@ -1,0 +1,24 @@
+# Prefect deployment config for cpi-etl-pipeline
+name: cpi-etl
+prefect-version: 3.2.14
+
+build: null
+push: null
+
+pull:
+  - prefect.deployments.steps.git_clone:
+      repository: YOUR_REPO_URL   # e.g. https://github.com/your-org/your-repo.git
+      branch: main
+      credentials: null             # add a GitHub block name here if repo is private
+
+deployments:
+  - name: cpi-etl-on-demand
+    description: "CPI ETL pipeline — triggered on demand"
+    entrypoint: main_prefect.py:cpi_etl_pipeline
+    schedule: null          # no schedule — run on demand only
+    tags:
+      - cpi
+      - etl
+    work_pool:
+      name: ccdi-cpi-2gb-prefect-3.2.14-python3.9
+      work_queue_name: default
