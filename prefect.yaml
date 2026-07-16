@@ -9,6 +9,9 @@ pull:
   - prefect.deployments.steps.git_clone:
       repository: https://github.com/CBIIT/ccdi-cpi-etl.git
       branch: main
+  - prefect.deployments.steps.run_shell_script:
+      script: pip install -r requirements.txt
+      stream_output: true
 
 deployments:
   - name: cpi-etl-on-demand
