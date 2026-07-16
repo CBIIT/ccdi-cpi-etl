@@ -7,16 +7,17 @@ push: null
 
 pull:
   - prefect.deployments.steps.git_clone:
+      id: git_clone
       repository: https://github.com/CBIIT/ccdi-cpi-etl.git
       branch: main
   - prefect.deployments.steps.run_shell_script:
-      script: pip install -r requirements.txt
+      script: pip install -r "{{ git_clone.directory }}/requirements.txt"
       stream_output: true
 
 deployments:
   - name: cpi-etl-on-demand
     description: "CPI ETL pipeline — triggered on demand"
-    entrypoint: main_prefect.py:cpi_etl_pipeline
+    entrypoint: "{{ git_clone.directory }}/main_prefect.py:cpi_etl_pipeline"
     schedule: null          # no schedule — run on demand only
     tags:
       - cpi
