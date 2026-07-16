@@ -6,10 +6,8 @@ build: null
 push: null
 
 pull:
-  - prefect.deployments.steps.git_clone:
-      repository: YOUR_REPO_URL   # e.g. https://github.com/your-org/your-repo.git
-      branch: main
-      credentials: null             # add a GitHub block name here if repo is private
+  - prefect.deployments.steps.set_working_directory:
+      directory: /app
 
 deployments:
   - name: cpi-etl-on-demand
