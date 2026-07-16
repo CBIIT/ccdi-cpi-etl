@@ -10,10 +10,8 @@ pull:
       id: git_clone
       repository: https://github.com/CBIIT/ccdi-cpi-etl.git
       branch: main
-  - prefect.deployments.steps.set_working_directory:
-      directory: "{{ git_clone.directory }}"
   - prefect.deployments.steps.run_shell_script:
-      script: pip install -r requirements.txt
+      script: pip install -r "{{ git_clone.directory }}/requirements.txt"
       stream_output: true
 
 deployments:
