@@ -1,13 +1,17 @@
 import json
+import os
 import re
 import networkx as nx
 import pymysql
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import boto3
-import logging
 
 from prefect import flow, task, get_run_logger
+
+DB_SECRET_NAME = os.getenv("DB_SECRET_NAME", "ccdi-dev-cpi-mysql")
+SNS_TOPIC_ARN  = os.getenv("SNS_TOPIC_ARN",  "arn:aws:sns:us-east-1:893214465464:etl-notification")
+S3_BUCKET      = os.getenv("S3_BUCKET",      "ccdi-nonprod-cpi-source-data")
 
 _VERSION_PATTERN = re.compile(r"^v(?P<major>\d+)\.(?P<minor>\d+)$")
 
@@ -43,7 +47,7 @@ def notify_completion(message: str, subject: str = "ETL Job Completed"):
     sns = boto3.client("sns", region_name="us-east-1")
     try:
         sns.publish(
-            TopicArn="arn:aws:sns:us-east-1:893214465464:etl-notification",
+            TopicArn=SNS_TOPIC_ARN,
             Message=message,
             Subject=subject,
         )
@@ -58,9 +62,9 @@ def read_data_from_db() -> list:
     result = []
     connection = None
     try:
-        creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
+        creds = get_mysql_credentials(DB_SECRET_NAME)
         connection = pymysql.connect(
-            host="ccdi-dev-cpi-rds.cji2s0rgsplw.us-east-1.rds.amazonaws.com",
+            host=creds["host"],
             user=creds["user_name"],
             password=creds["password"],
             database="cpi",
@@ -125,9 +129,9 @@ def upload_to_s3(file_path: str, bucket: str, prefix: str):
 @task(name="update_participants_from_json", retries=2, retry_delay_seconds=30)
 def update_participants_from_json(json_file: str):
     logger = get_run_logger()
-    creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
+    creds = get_mysql_credentials(DB_SECRET_NAME)
     conn = pymysql.connect(
-        host="ccdi-dev-cpi-rds.cji2s0rgsplw.us-east-1.rds.amazonaws.com",
+        host=creds["host"],
         user=creds["user_name"],
         password=creds["password"],
         database="cpi",
@@ -184,9 +188,9 @@ def update_participants_from_json(json_file: str):
 @task(name="update_statistics", retries=2, retry_delay_seconds=30)
 def update_statistics():
     logger = get_run_logger()
-    creds = get_mysql_credentials("ccdi-dev-cpi-mysql")
+    creds = get_mysql_credentials(DB_SECRET_NAME)
     conn = pymysql.connect(
-        host="ccdi-dev-cpi-rds.cji2s0rgsplw.us-east-1.rds.amazonaws.com",
+        host=creds["host"],
         user=creds["user_name"],
         password=creds["password"],
         database="cpi",
@@ -316,7 +320,7 @@ def update_statistics():
 @flow(name="cpi-etl-pipeline", log_prints=True)
 def cpi_etl_pipeline():
     """CPI ETL: read DB → build graph → write JSON → S3 → update DB → statistics."""
-    json_file = "test-output.json"
+    json_file = "output.json"
 
     notify_completion("ETL job main_prefect.py has started.", subject="ETL Job Started")
 
@@ -324,7 +328,7 @@ def cpi_etl_pipeline():
     graph = get_relationships(raw)
     output = format_output(graph)
     write_json_file(output, json_file)
-    upload_to_s3(json_file, "ccdi-nonprod-cpi-source-data", "json-file/")
+    upload_to_s3(json_file, S3_BUCKET, "json-file/")
     update_participants_from_json(json_file)
     update_statistics()
 
