@@ -23,5 +23,5 @@ deployments:
       - cpi
       - etl
     work_pool:
-      name: ccdi-cpi-2gb-prefect-3.2.14-python3.9
+      name: ccdi-cpi-8gb-prefect-3.2.14-python3.9
       work_queue_name: default
