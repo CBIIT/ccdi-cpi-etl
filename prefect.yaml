@@ -14,14 +14,10 @@ pull:
       script: pip install -r "{{ git_clone.directory }}/requirements.txt"
       stream_output: true
   # mysqldump / mysql binaries needed by the data-promotion flow.
-  # Falls back to apt-get for Debian/Ubuntu-based work-pool images.
+  # run_shell_script uses shlex.split (no shell), so wrap multi-command
+  # logic in `bash -c '...'` to preserve pipes / && / conditionals.
   - prefect.deployments.steps.run_shell_script:
-      script: |
-        if ! command -v mysqldump >/dev/null 2>&1; then
-          (apt-get update && apt-get install -y --no-install-recommends default-mysql-client) \
-            || (sudo apt-get update && sudo apt-get install -y --no-install-recommends default-mysql-client)
-        fi
-        mysqldump --version && mysql --version
+      script: bash -c 'command -v mysqldump >/dev/null 2>&1 || (apt-get update && apt-get install -y --no-install-recommends default-mysql-client); mysqldump --version && mysql --version'
       stream_output: true
 
 deployments:
