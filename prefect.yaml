@@ -52,6 +52,7 @@ deployments:
       target_env: qa
       s3_uri: latest
       require_approval_for_prod: true
+      reset_before_restore: true
     tags:
       - cpi
       - data-promotion
