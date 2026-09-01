@@ -67,31 +67,40 @@ def dump_source_db(work_dir: str) -> str:
     ts = datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d_%H%M%S")
     dump_path = Path(work_dir) / f"cpi_dump_{ts}.sql"
 
-    cmd = [
+    base_cmd = [
         mysqldump,
         "-h", creds["host"],
         "-P", str(creds.get("port", 3306)),
         "-u", creds["user_name"],
         "--single-transaction",
-        "--set-gtid-purged=OFF",   # avoids the GTID_PURGED line entirely
-        "--column-statistics=0",   # dropped automatically if unsupported
         "--routines",
         "--triggers",
         "--events",
-        DB_NAME,
     ]
+    # Optional flags — MariaDB's mysqldump rejects these; MySQL 8 client needs them.
+    # If mysqldump reports "unknown variable 'X'" we drop X and retry.
+    optional_flags = ["--set-gtid-purged=OFF", "--column-statistics=0"]
     env = {**os.environ, "MYSQL_PWD": creds["password"]}
 
     logger.info(f"Dumping {DB_NAME}@{creds['host']} to {dump_path}")
-    with open(dump_path, "wb") as fh:
-        proc = subprocess.run(cmd, stdout=fh, stderr=subprocess.PIPE, env=env, check=False)
-    if proc.returncode != 0 and b"unknown variable 'column-statistics'" in proc.stderr:
-        logger.warning("mysqldump does not support --column-statistics; retrying without it.")
-        cmd.remove("--column-statistics=0")
+    unknown_var_re = re.compile(r"unknown variable '([^']+)'")
+    while True:
+        cmd = [*base_cmd, *optional_flags, DB_NAME]
         with open(dump_path, "wb") as fh:
             proc = subprocess.run(cmd, stdout=fh, stderr=subprocess.PIPE, env=env, check=False)
-    if proc.returncode != 0:
-        raise RuntimeError(f"mysqldump failed: {proc.stderr.decode('utf-8', 'replace')}")
+        if proc.returncode == 0:
+            break
+        stderr = proc.stderr.decode("utf-8", "replace")
+        bad_vars = unknown_var_re.findall(stderr)
+        # Match "set-gtid-purged=OFF" against flag "--set-gtid-purged=OFF" (also handles bare-name reports).
+        droppable = [
+            f for f in optional_flags
+            if any(bv.split("=", 1)[0] in f for bv in bad_vars)
+        ]
+        if not droppable:
+            raise RuntimeError(f"mysqldump failed: {stderr}")
+        logger.warning(f"mysqldump does not support {droppable}; retrying without.")
+        optional_flags = [f for f in optional_flags if f not in droppable]
 
     size_mb = dump_path.stat().st_size / (1024 * 1024)
     logger.info(f"Dump complete: {dump_path} ({size_mb:.1f} MB)")
