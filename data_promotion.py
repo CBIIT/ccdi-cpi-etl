@@ -174,6 +174,77 @@ def download_dump_from_s3(s3_uri: str, work_dir: str) -> str:
     return str(dest)
 
 
+@task(name="reset_target_schema")
+def reset_target_schema(target_env: str) -> None:
+    """Drop all tables/views/routines/triggers/events in the target DB so the
+    restore starts from a clean slate. Prevents charset/collation FK conflicts
+    with pre-existing tables (MySQL 8 error 3780)."""
+    import pymysql
+
+    logger = get_run_logger()
+    creds = get_mysql_credentials(f"ccdi-{target_env}-cpi-mysql")
+    conn = pymysql.connect(
+        host=creds["host"],
+        port=int(creds.get("port", 3306)),
+        user=creds["user_name"],
+        password=creds["password"],
+        database=DB_NAME,
+        autocommit=True,
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET FOREIGN_KEY_CHECKS=0")
+
+            cur.execute(
+                "SELECT table_name, table_type FROM information_schema.tables "
+                "WHERE table_schema=%s",
+                (DB_NAME,),
+            )
+            tables, views = [], []
+            for name, ttype in cur.fetchall():
+                (views if ttype == "VIEW" else tables).append(name)
+
+            for v in views:
+                logger.info(f"Dropping view `{v}`")
+                cur.execute(f"DROP VIEW IF EXISTS `{v}`")
+            for t in tables:
+                logger.info(f"Dropping table `{t}`")
+                cur.execute(f"DROP TABLE IF EXISTS `{t}`")
+
+            for kind, col in [("PROCEDURE", "routine_name"), ("FUNCTION", "routine_name")]:
+                cur.execute(
+                    f"SELECT {col} FROM information_schema.routines "
+                    f"WHERE routine_schema=%s AND routine_type=%s",
+                    (DB_NAME, kind),
+                )
+                for (name,) in cur.fetchall():
+                    logger.info(f"Dropping {kind.lower()} `{name}`")
+                    cur.execute(f"DROP {kind} IF EXISTS `{name}`")
+
+            cur.execute(
+                "SELECT trigger_name FROM information_schema.triggers "
+                "WHERE trigger_schema=%s",
+                (DB_NAME,),
+            )
+            for (name,) in cur.fetchall():
+                logger.info(f"Dropping trigger `{name}`")
+                cur.execute(f"DROP TRIGGER IF EXISTS `{name}`")
+
+            cur.execute(
+                "SELECT event_name FROM information_schema.events "
+                "WHERE event_schema=%s",
+                (DB_NAME,),
+            )
+            for (name,) in cur.fetchall():
+                logger.info(f"Dropping event `{name}`")
+                cur.execute(f"DROP EVENT IF EXISTS `{name}`")
+
+            cur.execute("SET FOREIGN_KEY_CHECKS=1")
+        logger.info(f"Target schema `{DB_NAME}` on {target_env} is now empty.")
+    finally:
+        conn.close()
+
+
 @task(name="restore_target_db", retries=0)
 def restore_target_db(dump_path: str, target_env: str) -> None:
     logger = get_run_logger()
@@ -225,11 +296,14 @@ def cpi_db_restore(
     target_env: str,
     s3_uri: str = "latest",
     require_approval_for_prod: bool = True,
+    reset_before_restore: bool = True,
 ) -> None:
     """Restore an S3-hosted dump into qa / stage / prod.
 
     s3_uri: full s3://bucket/key of the dump, or 'latest' to pick the newest
     file under S3_DUMP_PREFIX in S3_BUCKET.
+    reset_before_restore: drop all objects in the target DB first (recommended;
+    avoids FK collation conflicts with pre-existing tables).
     """
     logger = get_run_logger()
     target_env = target_env.lower().strip()
@@ -245,6 +319,8 @@ def cpi_db_restore(
     with tempfile.TemporaryDirectory(prefix="cpi_restore_") as work_dir:
         dump_path = download_dump_from_s3(resolved_uri, work_dir)
         try:
+            if reset_before_restore:
+                reset_target_schema(target_env)
             restore_target_db(dump_path, target_env)
         except Exception as e:
             notify_completion(
