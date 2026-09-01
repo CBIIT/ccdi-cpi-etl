@@ -13,6 +13,16 @@ pull:
   - prefect.deployments.steps.run_shell_script:
       script: pip install -r "{{ git_clone.directory }}/requirements.txt"
       stream_output: true
+  # mysqldump / mysql binaries needed by the data-promotion flow.
+  # Falls back to apt-get for Debian/Ubuntu-based work-pool images.
+  - prefect.deployments.steps.run_shell_script:
+      script: |
+        if ! command -v mysqldump >/dev/null 2>&1; then
+          (apt-get update && apt-get install -y --no-install-recommends default-mysql-client) \
+            || (sudo apt-get update && sudo apt-get install -y --no-install-recommends default-mysql-client)
+        fi
+        mysqldump --version && mysql --version
+      stream_output: true
 
 deployments:
   - name: cpi-etl-on-demand
@@ -22,6 +32,34 @@ deployments:
     tags:
       - cpi
       - etl
+    work_pool:
+      name: ccdi-cpi-8gb-prefect-3.2.14-python3.9
+      work_queue_name: default
+
+  - name: cpi-db-dump
+    description: "Dump dev CPI DB, strip incompatible lines, upload sanitized dump to S3."
+    entrypoint: data_promotion.py:cpi_db_dump
+    schedule: null
+    tags:
+      - cpi
+      - data-promotion
+      - dump
+    work_pool:
+      name: ccdi-cpi-8gb-prefect-3.2.14-python3.9
+      work_queue_name: default
+
+  - name: cpi-db-restore
+    description: "Restore a dump from S3 into qa/stage/prod. Pass s3_uri or 'latest'."
+    entrypoint: data_promotion.py:cpi_db_restore
+    schedule: null
+    parameters:
+      target_env: qa
+      s3_uri: latest
+      require_approval_for_prod: true
+    tags:
+      - cpi
+      - data-promotion
+      - restore
     work_pool:
       name: ccdi-cpi-8gb-prefect-3.2.14-python3.9
       work_queue_name: default
