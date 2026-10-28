@@ -1,4 +1,4 @@
 boto3==1.34.105
 networkx==3.2.1
 prefect>=3.2.14
-pymysql==1.1.0
+pymysql==1.1.1
