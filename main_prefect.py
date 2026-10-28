@@ -42,15 +42,21 @@ def get_mysql_credentials(secret_name: str, region_name: str = "us-east-1") -> d
 # ── Prefect tasks ─────────────────────────────────────────────────────────────
 
 @task(name="notify", retries=2, retry_delay_seconds=10)
-def notify_completion(message: str, subject: str = "ETL Job Completed"):
+def notify_completion(message: str, subject: str = "ETL Job Completed", environment: str | None = None):
     logger = get_run_logger()
     sns = boto3.client("sns", region_name="us-east-1")
+    publish_kwargs = {
+        "TopicArn": SNS_TOPIC_ARN,
+        "Message": message,
+        "Subject": subject,
+    }
+    # Attach environment as a MessageAttribute so subscribers can filter (e.g. prod-only).
+    if environment:
+        publish_kwargs["MessageAttributes"] = {
+            "environment": {"DataType": "String", "StringValue": environment},
+        }
     try:
-        sns.publish(
-            TopicArn=SNS_TOPIC_ARN,
-            Message=message,
-            Subject=subject,
-        )
+        sns.publish(**publish_kwargs)
         logger.info("Notification sent to SNS.")
     except Exception as e:
         logger.error(f"Failed to send SNS notification: {e}")

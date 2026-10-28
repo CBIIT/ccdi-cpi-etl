@@ -326,12 +326,14 @@ def cpi_db_restore(
             notify_completion(
                 message=f"CPI restore to {target_env} FAILED: {e}\nDump: {resolved_uri}",
                 subject=f"CPI restore FAILED ({target_env})",
+                environment=target_env,
             )
             raise
 
     notify_completion(
         message=f"CPI restore to {target_env} succeeded.\nDump: {resolved_uri}",
         subject=f"CPI restore succeeded ({target_env})",
+        environment=target_env,
     )
 
 
