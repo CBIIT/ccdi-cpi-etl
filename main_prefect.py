@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from typing import Optional
 import networkx as nx
 import pymysql
 from datetime import datetime
@@ -42,7 +43,7 @@ def get_mysql_credentials(secret_name: str, region_name: str = "us-east-1") -> d
 # ── Prefect tasks ─────────────────────────────────────────────────────────────
 
 @task(name="notify", retries=2, retry_delay_seconds=10)
-def notify_completion(message: str, subject: str = "ETL Job Completed", environment: str | None = None):
+def notify_completion(message: str, subject: str = "ETL Job Completed", environment: Optional[str] = None):
     logger = get_run_logger()
     sns = boto3.client("sns", region_name="us-east-1")
     publish_kwargs = {
